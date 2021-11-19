@@ -1,0 +1,442 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_INPUT_LINE_SIZE 300
+
+struct Dir;
+struct File;
+
+typedef struct Dir{
+	char *name;
+	struct Dir* parent;
+	struct File* head_children_files;
+	struct Dir* head_children_dirs;
+	struct Dir* next;
+} Dir;
+
+typedef struct File {
+	char *name;
+	struct Dir* parent;
+	struct File* next;
+} File;
+
+void touch (Dir* parent, char* name) {
+	if (parent->head_children_files == NULL) {
+		File* headFile = (File*)malloc(sizeof(File));
+		headFile->name = (char*)malloc(sizeof(char) * (strlen(name) + 1) );
+		headFile->parent = parent;
+		headFile->next = NULL;
+		strcpy(headFile->name, name);
+		parent->head_children_files = headFile;
+		return;
+	}
+	else {
+		File* movingThroughFiles = parent->head_children_files;
+		while (movingThroughFiles->next) {
+			if (strcmp(movingThroughFiles->name, name) == 0) {
+				printf("File already exists\n");
+				return;
+			}
+			movingThroughFiles = movingThroughFiles->next;
+		}
+		if (strcmp(movingThroughFiles->name, name) == 0) {
+			printf("File already exists\n");
+			return;
+		}
+		else {
+			File* newFile = (File*)malloc(sizeof(File));
+			newFile->name = (char*)malloc(sizeof(char) * (strlen(name) + 1) );
+			newFile->parent = parent;
+			newFile->next = NULL;
+			strcpy(newFile->name, name);
+			movingThroughFiles->next = newFile;
+		}
+	}
+}
+
+void mkdir (Dir* parent, char* name) {
+	if (parent->head_children_dirs == NULL) {
+		Dir* headDir = (Dir*)malloc(sizeof(Dir));
+		headDir->name = (char*)malloc(sizeof(char) * (strlen(name) + 1) );
+		headDir->parent = parent;
+		headDir->next = NULL;
+		headDir->head_children_dirs = NULL;
+		headDir->head_children_files = NULL;
+		strcpy(headDir->name, name);
+		parent->head_children_dirs = headDir;
+		return;
+	}
+	else {
+		Dir* movingThroughDirs = parent->head_children_dirs;
+		while (movingThroughDirs->next) {
+			if (strcmp(movingThroughDirs->name, name) == 0) {
+				printf("Directory already exists\n");
+				return;
+			}
+			movingThroughDirs = movingThroughDirs->next;
+		}
+		if (strcmp(movingThroughDirs->name, name) == 0) {
+			printf("Directory already exists\n");
+			return;
+		}
+		else {
+			Dir* newDir = (Dir*)malloc(sizeof(Dir));
+			newDir->name = (char*)malloc(sizeof(char) * (strlen(name) + 1) );
+			newDir->parent = parent;
+			newDir->next = NULL;
+			newDir->head_children_files = NULL;
+			newDir->head_children_dirs = NULL;
+			strcpy(newDir->name, name);
+			movingThroughDirs->next = newDir;
+		}
+	}
+}
+
+void ls (Dir* parent) {
+	Dir* movingThroughDirs = parent->head_children_dirs;
+	if (parent->head_children_dirs != NULL) {
+		printf("%s\n", movingThroughDirs->name);
+		movingThroughDirs = movingThroughDirs->next;
+	}
+	while (movingThroughDirs) {
+		printf("%s\n", movingThroughDirs->name);
+		movingThroughDirs = movingThroughDirs->next;
+	}
+	File* movingThroughFiles = parent->head_children_files;
+	if (parent->head_children_files != NULL) {
+		printf("%s\n", movingThroughFiles->name);
+		movingThroughFiles = movingThroughFiles->next;
+	}
+	while (movingThroughFiles) {
+		printf("%s\n", movingThroughFiles->name);
+		movingThroughFiles = movingThroughFiles->next;
+	}
+}
+
+void rm (Dir* parent, char* name) {
+		File* movingThroughFiles = parent->head_children_files;
+		int logic = 0;
+		while (movingThroughFiles) {
+			if (strcmp(movingThroughFiles->name, name) == 0) {
+				logic = 1;
+				if (movingThroughFiles == parent->head_children_files && movingThroughFiles->next == NULL) {
+					free(movingThroughFiles->name);
+					free(movingThroughFiles);
+					parent->head_children_files = NULL;
+					return;
+				}
+				if (movingThroughFiles == parent->head_children_files && movingThroughFiles->next != NULL) {
+					parent->head_children_files = movingThroughFiles->next;
+					free(movingThroughFiles->name);
+					free(movingThroughFiles);
+					return;
+				}
+				if (movingThroughFiles != parent->head_children_files && movingThroughFiles->next != NULL) {
+					File* behindNode = parent->head_children_files;
+					while (behindNode->next != movingThroughFiles)
+						behindNode = behindNode->next;
+					behindNode->next = movingThroughFiles->next;
+					free(movingThroughFiles->name);
+					free(movingThroughFiles);
+					return;
+				}
+				if (movingThroughFiles != parent->head_children_files && movingThroughFiles->next == NULL) {
+					File* behindNode = parent->head_children_files;
+					while (behindNode->next != movingThroughFiles)
+						behindNode = behindNode->next;
+					behindNode->next = movingThroughFiles->next;
+					free(movingThroughFiles->name);
+					free(movingThroughFiles);
+					return;
+				}
+			}
+			movingThroughFiles = movingThroughFiles->next;
+		}
+	if (logic == 0)
+		printf("Could not find the file\n");
+}
+void rmdir (Dir* parent, char* name) {
+	int logic = 0;
+	Dir* movingThroughDirs = parent->head_children_dirs;
+	while (movingThroughDirs) {
+		if (strcmp(movingThroughDirs->name, name) == 0) {
+			logic = 1;
+			while (movingThroughDirs->head_children_dirs != NULL) {
+				Dir* movingThroughDirSons = movingThroughDirs->head_children_dirs;
+				rmdir(movingThroughDirs, movingThroughDirSons->name);
+			}
+			while (movingThroughDirs->head_children_files != NULL) {
+				File* movingThroughFiles = movingThroughDirs->head_children_files;
+				rm(movingThroughDirs, movingThroughFiles->name);
+			}
+			// Daca stergem headerul
+			if (movingThroughDirs == parent->head_children_dirs)
+				parent->head_children_dirs = movingThroughDirs->next;
+			// Daca stergem nod de mijloc
+			else if (movingThroughDirs != parent->head_children_dirs && 
+					movingThroughDirs->next != NULL) {
+				Dir* behindDeletedNode = parent->head_children_dirs;
+				while (behindDeletedNode->next != movingThroughDirs)
+					behindDeletedNode = behindDeletedNode->next;
+				behindDeletedNode->next = movingThroughDirs->next;
+			}
+			else if (movingThroughDirs != parent->head_children_dirs && 
+					movingThroughDirs->next == NULL) {
+				Dir* behindDeletedNode = parent->head_children_dirs;
+				while (behindDeletedNode->next != movingThroughDirs)
+					behindDeletedNode = behindDeletedNode->next;
+				behindDeletedNode->next = NULL;
+			}
+
+			free(movingThroughDirs->name);
+			free(movingThroughDirs);
+			return;
+		}
+		else
+			movingThroughDirs = movingThroughDirs->next;
+	}
+	if (logic == 0)
+			printf("Couldn't find the dir\n");
+}
+
+void cd(Dir** target, char* name) {
+	int logic = 0;
+	if ( strcmp(name, "..") == 0) {
+		if ( strcmp( (*target)->name, "home" ) == 0 )
+			return;
+		else
+			(*target) = (*target)->parent;
+	}
+	else {
+		Dir* movingThroughDirs = (*target)->head_children_dirs;
+		while (movingThroughDirs) {
+			if (strcmp(movingThroughDirs->name, name) == 0) {
+				logic = 1;
+				(*target) = movingThroughDirs;
+			}
+			movingThroughDirs = movingThroughDirs->next;
+		}
+		if (!logic) printf("No directories found!\n");
+	}
+}
+
+void tree(Dir* target, int level) {
+	Dir* movingThroughDirs = target->head_children_dirs;
+	while (movingThroughDirs) {
+		for (int i = 0; i < level; i++)
+			printf("    ");
+		printf("%s\n", movingThroughDirs->name);
+		if (movingThroughDirs->head_children_dirs != NULL || 
+			movingThroughDirs->head_children_files != NULL)
+			tree(movingThroughDirs, level + 1);
+		movingThroughDirs = movingThroughDirs->next;
+	}
+	File* movingThroughFiles = target->head_children_files;
+	while (movingThroughFiles) {
+		for (int i = 0; i < level; i++)
+			printf("    ");
+		printf("%s\n", movingThroughFiles->name);
+		movingThroughFiles = movingThroughFiles->next;
+	}
+}
+
+char *pwd (Dir* target) {
+	Dir* goingBackwards = target;
+	int length = 0;
+	char *way = (char*)malloc(sizeof(char));
+	way[0] = '\0';
+	while (goingBackwards != NULL) {
+		length = length + strlen(goingBackwards->name) + 2;
+		way = realloc(way, length);
+		strcat(way, goingBackwards->name);
+		strcat(way, "/");
+		goingBackwards = goingBackwards->parent;
+	}
+	return way;
+}
+
+void stop (Dir* target) {
+	while (target->parent != NULL)
+		target = target->parent;
+	while (target->head_children_dirs != NULL)
+		rmdir(target, target->head_children_dirs->name);
+	while (target->head_children_files != NULL) {
+		rm(target, target->head_children_files->name);
+	}
+	free(target->name);
+	free(target);
+}
+
+void mv(Dir* parent, char* oldname, char* newname) {
+	if (strncmp(oldname, "d", 1) == 0) {
+		Dir* movingThroughDirs = parent->head_children_dirs;
+		int oldDirExists = 0;
+		while (movingThroughDirs) {
+			if (strcmp(movingThroughDirs->name, oldname) == 0) {
+				oldDirExists = 1;
+				break;
+			}
+			movingThroughDirs = movingThroughDirs->next; 
+		}
+		int newDirExists = 0;
+		movingThroughDirs = parent->head_children_dirs;
+		while (movingThroughDirs) {
+			if (strcmp(movingThroughDirs->name, newname) == 0) {
+				newDirExists = 1;
+				break;
+			}
+			movingThroughDirs = movingThroughDirs->next; 
+		}
+		if (oldDirExists == 0) {
+			printf("Director not found\n");
+			return;
+		}
+		if (newDirExists == 1) {
+			printf("Director already exists\n");
+			return;
+		}
+		movingThroughDirs = parent->head_children_dirs;
+		while (movingThroughDirs->next)
+			movingThroughDirs = movingThroughDirs->next;
+		Dir* oldDir = parent->head_children_dirs;
+		while (strcmp(oldDir->name, oldname) != 0) {
+			oldDir = oldDir->next;
+		}
+		if (oldDir == parent->head_children_dirs && oldDir->next != NULL) {
+			parent->head_children_dirs = oldDir->next;
+			movingThroughDirs->next = oldDir;
+			oldDir->next = NULL;
+		}
+		else if (oldDir != parent->head_children_dirs && oldDir->next != NULL) {
+			Dir* behindOldDir = parent->head_children_dirs;
+			while (behindOldDir->next != oldDir)
+				behindOldDir = behindOldDir->next;
+			behindOldDir->next = oldDir->next;
+			oldDir->next = NULL;
+			movingThroughDirs->next = oldDir;
+		}
+		oldDir->name = realloc(oldDir->name, sizeof(char)*(strlen(newname) + 1));
+		strcpy(oldDir->name, newname);
+	}
+	else if (strncmp(oldname, "f", 1) == 0) {
+		File* movingThroughFiles = parent->head_children_files;
+		int oldFileExists = 0;
+		while (movingThroughFiles) {
+			if (strcmp(movingThroughFiles->name, oldname) == 0)
+				oldFileExists = 1;
+			movingThroughFiles = movingThroughFiles->next; 
+		}
+		int newFileExists = 0;
+		while (movingThroughFiles) {
+			if (strcmp(movingThroughFiles->name, oldname) == 0)
+				newFileExists = 1;
+			movingThroughFiles = movingThroughFiles->next; 
+		}
+		if (oldFileExists == 0) {
+			printf("File not found\n");
+			return;
+		}
+		if (newFileExists == 1) {
+			printf("File already exists\n");
+			return;
+		}
+		movingThroughFiles = parent->head_children_files;
+		while (movingThroughFiles->next)
+			movingThroughFiles = movingThroughFiles->next;
+		File* oldFile = parent->head_children_files;
+		while (strcmp(oldFile->name, oldname) != 0) {
+			oldFile = oldFile->next;
+		}
+		if (oldFile == parent->head_children_files) {
+			parent->head_children_files = oldFile->next;
+			movingThroughFiles->next = oldFile;
+			oldFile->next = NULL;
+		}
+		else if (oldFile != parent->head_children_files && oldFile->next != NULL) {
+			File* behindOldFile = parent->head_children_files;
+			while (behindOldFile->next != oldFile)
+				behindOldFile = behindOldFile->next;
+			behindOldFile->next = oldFile->next;
+			oldFile->next = NULL;
+			movingThroughFiles->next = oldFile;
+		}
+		oldFile->name = realloc(oldFile->name, sizeof(char)*(strlen(newname) + 1));
+		strcpy(oldFile->name, newname);
+	}
+}
+
+int main () {
+	FILE *fp;
+	fp = fopen("input.txt", "r");
+	char buffer[MAX_INPUT_LINE_SIZE];
+	Dir* root = (Dir*)malloc(sizeof(Dir));
+	root->name = (char*)malloc(sizeof(char) * 5);
+	root->head_children_files = NULL;
+	root->head_children_dirs = NULL;
+	root->parent = NULL;
+	strcpy(root->name, "home");
+	Dir* working_directory = root;
+	char* firstToken;
+	char* secondToken;
+	const char symbol[3] = " \n";
+	while (fgets(buffer, MAX_INPUT_LINE_SIZE, fp) && working_directory != NULL) {
+		firstToken = strtok(buffer, symbol);
+		secondToken = strtok(NULL, symbol);
+		if (strcmp(firstToken, "touch") == 0)
+			touch(working_directory, secondToken);
+		else if (strcmp(firstToken, "mkdir") == 0)
+			mkdir(working_directory, secondToken);
+		else if (strncmp(firstToken, "ls", 2) == 0)
+			ls(working_directory);
+		else if (strcmp(firstToken, "rm") == 0)
+			rm(working_directory, secondToken);
+		else if (strcmp(firstToken, "rmdir") == 0)
+			rmdir(working_directory, secondToken);
+		else if (strcmp(firstToken, "cd") == 0)
+			cd(&working_directory, secondToken);
+		else if (strcmp(firstToken, "tree") == 0)
+			tree(working_directory, 0);
+		else if (strcmp(firstToken, "pwd") == 0) {
+			char *way = pwd(working_directory);
+			char *wayToken;
+			wayToken = strtok(way, "/");
+			printf("%s \n", wayToken);
+			int capacity = 5;
+			char **pwdDirs = (char**)malloc(capacity*sizeof(char*));
+			int nrElemsPwdDirs = 1;
+			while (wayToken != NULL) {
+				printf("%d   %d \n", nrElemsPwdDirs, capacity);
+				if (nrElemsPwdDirs == capacity) {
+					capacity *= 2;
+					printf("\n%d\n", capacity);
+					pwdDirs = realloc(pwdDirs, capacity*sizeof(char*));
+				}
+				pwdDirs[nrElemsPwdDirs - 1] = (char*)malloc(sizeof(char) * (strlen(wayToken) + 1));
+				strcpy(pwdDirs[nrElemsPwdDirs - 1], wayToken);
+				wayToken = strtok(NULL, "/");
+				nrElemsPwdDirs++;
+			}
+			for (int i = nrElemsPwdDirs - 2; i >= 0; i--) {
+				printf("/");
+				printf("%s", pwdDirs[i]);
+			}
+			for (int i = nrElemsPwdDirs - 2; i >= 0; i--) {
+				free(pwdDirs[i]);
+			}
+			free(pwdDirs);
+			free(way);
+		}
+		else if (strcmp(firstToken, "stop") == 0) {
+			stop(working_directory);
+			break;
+		}
+		else if (strcmp(firstToken, "mv") == 0) {
+			char* thirdToken = strtok(NULL, symbol);
+			mv(working_directory, secondToken, thirdToken);
+		}
+	}
+	fclose(fp);
+
+	return 0;
+}
